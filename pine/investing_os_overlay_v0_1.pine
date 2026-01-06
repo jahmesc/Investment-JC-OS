@@ -9,7 +9,7 @@ showDaily325 = input.bool(true, 'Show Daily 325 SMA', group=maGroup)
 weeklyMaToggle = input.bool(true, 'Show Weekly MAs', group=maGroup)
 monthlyMaToggle = input.bool(true, 'Show Monthly MAs', group=maGroup)
 
-emaLen = str.tonumber(emaChoice)
+emaLen = emaChoice == '9' ? 9 : 21
 dailySma50 = ta.sma(close, daily50Len)
 dailyEma = ta.ema(close, emaLen)
 dailySma325 = ta.sma(close, 325)
