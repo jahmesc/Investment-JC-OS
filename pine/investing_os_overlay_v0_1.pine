@@ -1,28 +1,149 @@
 //@version=5
-// Investing OS Overlay v0.1
-// Placeholder script: replace with your TradingView overlay logic.
+indicator(title='Investing OS Overlay (v0.1)', shorttitle='Investing OS v0.1', overlay=true, max_lines_count=300, max_labels_count=300)
 
-indicator(title='Investing OS Overlay v0.1', shorttitle='Investing OS v0.1', overlay=true)
+// === Moving Averages ===
+maGroup = 'Moving Averages'
+daily50Len = input.int(50, 'Daily SMA (execution)', minval=1, group=maGroup)
+emaChoice = input.string('21', 'Daily EMA toggle', options=['9', '21'], group=maGroup)
+showDaily325 = input.bool(true, 'Show Daily 325 SMA', group=maGroup)
+weeklyMaToggle = input.bool(true, 'Show Weekly MAs', group=maGroup)
+monthlyMaToggle = input.bool(true, 'Show Monthly MAs', group=maGroup)
 
-// --- Inputs ---
-riskModel = input.string('Default', 'Risk model profile', options=['Default', 'Aggressive', 'Conservative'])
-sessionLabel = input.string('New York', 'Session to highlight', options=['New York', 'London', 'Asia'])
+emaLen = str.tonumber(emaChoice)
+dailySma50 = ta.sma(close, daily50Len)
+dailyEma = ta.ema(close, emaLen)
+dailySma325 = ta.sma(close, 325)
 
-// --- Core placeholders ---
-// Plot baseline session marker
-plotshape(barstate.isfirst, title='Initialization marker', style=shape.circle, location=location.bottom, color=color.new(color.blue, 20), size=size.tiny)
+weeklySma40 = request.security(syminfo.tickerid, 'W', ta.sma(close, 40), lookahead=barmerge.lookahead_off)
+weeklySma325 = request.security(syminfo.tickerid, 'W', ta.sma(close, 325), lookahead=barmerge.lookahead_off)
 
-// Highlight chosen session (replace with your own logic)
-sessionColor = switch sessionLabel
-    'New York' => color.new(color.orange, 70)
-    'London' => color.new(color.blue, 70)
-    => color.new(color.purple, 70)
+monthlySma12 = request.security(syminfo.tickerid, 'M', ta.sma(close, 12), lookahead=barmerge.lookahead_off)
+monthlySma36 = request.security(syminfo.tickerid, 'M', ta.sma(close, 36), lookahead=barmerge.lookahead_off)
 
-bgcolor(sessionColor, title='Session background')
+plot(dailySma50, title='Daily 50 SMA', color=color.orange, linewidth=2)
+plot(dailyEma, title='Daily EMA (9/21)', color=color.new(color.green, 0), linewidth=2, style=plot.style_line)
+plot(showDaily325 ? dailySma325 : na, title='Daily 325 SMA', color=color.new(color.blue, 0), linewidth=2, style=plot.style_line)
+plot(weeklyMaToggle ? weeklySma40 : na, title='Weekly 40 WMA (on daily chart)', color=color.new(color.fuchsia, 0), linewidth=2, style=plot.style_line)
+plot(weeklyMaToggle ? weeklySma325 : na, title='Weekly 325 WMA (on daily chart)', color=color.new(color.fuchsia, 70), linewidth=2, style=plot.style_line)
+plot(monthlyMaToggle ? monthlySma12 : na, title='Monthly 12 MMA (on daily chart)', color=color.new(color.red, 0), linewidth=2, style=plot.style_line)
+plot(monthlyMaToggle ? monthlySma36 : na, title='Monthly 36 MMA (on daily chart)', color=color.new(color.red, 70), linewidth=2, style=plot.style_line)
 
-// Risk model output stub
-label.new(bar_index, high, text='Risk: ' + riskModel, style=label.style_label_upper_left, color=color.new(color.black, 70), textcolor=color.white)
+// === RSI (separate pane) ===
+rsiGroup = 'RSI'
+showRsi = input.bool(true, 'Show RSI pane', group=rsiGroup)
+rsiLen = input.int(14, 'RSI length', minval=1, group=rsiGroup)
+rsiMaLen = input.int(14, 'RSI MA length', minval=1, group=rsiGroup)
+showRsiBands = input.bool(false, 'Show RSI bands', group=rsiGroup)
+rsiBandMult = input.float(2.0, 'RSI band multiplier', minval=0.1, step=0.1, group=rsiGroup)
 
-// --- Alerts ---
-// Placeholder alert condition. Replace with strategy-specific logic.
-alertcondition(close > open, title='Bullish placeholder', message='Bullish placeholder signal fired.')
+rsiValue = ta.rsi(close, rsiLen)
+rsiMa = ta.sma(rsiValue, rsiMaLen)
+rsiDev = ta.stdev(rsiValue, rsiMaLen)
+rsiUpper = rsiMa + rsiBandMult * rsiDev
+rsiLower = rsiMa - rsiBandMult * rsiDev
+
+plot(showRsi ? rsiValue : na, title='RSI', color=color.new(color.teal, 0), display=display.pane)
+plot(showRsi ? rsiMa : na, title='RSI MA', color=color.new(color.gray, 0), linewidth=2, display=display.pane)
+plot(showRsi and showRsiBands ? rsiUpper : na, title='RSI Upper Band', color=color.new(color.orange, 40), display=display.pane)
+plot(showRsi and showRsiBands ? rsiLower : na, title='RSI Lower Band', color=color.new(color.orange, 40), display=display.pane)
+
+// === Accumulation Proxies ===
+accGroup = 'Accumulation'
+showObv = input.bool(false, 'Show OBV', group=accGroup)
+showCmf = input.bool(false, 'Show CMF', group=accGroup)
+
+obvSeries = ta.obv(close, volume)
+cmfSeries = ta.cmf(high, low, close, volume, 20)
+plot(showObv ? obvSeries : na, title='OBV', color=color.new(color.blue, 0), display=display.pane)
+plot(showCmf ? cmfSeries : na, title='CMF', color=color.new(color.purple, 0), display=display.pane)
+
+// === Auto/Manual Fib ===
+fibGroup = 'Fib'
+leftBars = input.int(5, 'Pivot left bars', minval=1, group=fibGroup)
+rightBars = input.int(5, 'Pivot right bars (confirmation)', minval=1, group=fibGroup)
+useManualSwing = input.bool(false, 'Use manual swings instead of auto', group=fibGroup)
+manualSwingHighPrice = input.float(na, 'Manual swing high', group=fibGroup)
+manualSwingLowPrice = input.float(na, 'Manual swing low', group=fibGroup)
+reloadLower = input.float(0.382, 'Reload zone lower', minval=0, maxval=1, group=fibGroup)
+reloadUpper = input.float(0.5, 'Reload zone upper', minval=0, maxval=1, group=fibGroup)
+
+// Pivot confirmation happens only after `rightBars` candles complete, preventing any repainting beyond that natural delay.
+pHighPivot = ta.pivothigh(high, leftBars, rightBars)
+pLowPivot = ta.pivotlow(low, leftBars, rightBars)
+var float swingHigh = na
+var float swingLow = na
+var int swingHighBar = na
+var int swingLowBar = na
+if not na(pHighPivot)
+    swingHigh := pHighPivot
+    swingHighBar := bar_index - rightBars
+if not na(pLowPivot)
+    swingLow := pLowPivot
+    swingLowBar := bar_index - rightBars
+
+float activeHigh = useManualSwing ? manualSwingHighPrice : swingHigh
+float activeLow = useManualSwing ? manualSwingLowPrice : swingLow
+
+float swingHighVal = na
+float swingLowVal = na
+if not na(activeHigh) and not na(activeLow)
+    swingHighVal := math.max(activeHigh, activeLow)
+    swingLowVal := math.min(activeHigh, activeLow)
+
+fibRange = swingHighVal - swingLowVal
+fibValid = not na(swingHighVal) and not na(swingLowVal) and fibRange != 0
+fib236 = fibValid ? swingHighVal - fibRange * 0.236 : na
+fib382 = fibValid ? swingHighVal - fibRange * 0.382 : na
+fib50 = fibValid ? swingHighVal - fibRange * 0.5 : na
+fib618 = fibValid ? swingHighVal - fibRange * 0.618 : na
+
+plot(fib236, title='Fib 0.236', color=color.new(color.yellow, 60), linewidth=1, style=plot.style_linebr)
+plot(fib382, title='Fib 0.382', color=color.new(color.yellow, 40), linewidth=1, style=plot.style_linebr)
+plot(fib50, title='Fib 0.5', color=color.new(color.yellow, 20), linewidth=1, style=plot.style_linebr)
+plot(fib618, title='Fib 0.618', color=color.new(color.yellow, 0), linewidth=1, style=plot.style_linebr)
+plotfill(fib382, fib50, title='Reload zone fill', color=color.new(color.green, 85))
+
+reloadHigh = fibValid ? swingHighVal - fibRange * reloadLower : na
+reloadLow = fibValid ? swingHighVal - fibRange * reloadUpper : na
+reloadZoneUpper = math.max(reloadHigh, reloadLow)
+reloadZoneLower = math.min(reloadHigh, reloadLow)
+reloadCondition = fibValid and close <= reloadZoneUpper and close >= reloadZoneLower
+
+// === Setup Score (0-100) ===
+scoreGroup = 'Setup Score'
+addThreshold = input.int(75, 'Add threshold', minval=1, maxval=100, group=scoreGroup)
+cautionThreshold = input.int(40, 'Caution threshold', minval=1, maxval=100, group=scoreGroup)
+
+weeklyClose = request.security(syminfo.tickerid, 'W', close, lookahead=barmerge.lookahead_off)
+monthlyClose = request.security(syminfo.tickerid, 'M', close, lookahead=barmerge.lookahead_off)
+
+monthlyRegimeScore = (monthlyClose >= monthlySma12 ? 15 : 0) + (monthlySma12 >= monthlySma36 ? 10 : 0)
+weeklyMomentumScore = (weeklyClose >= weeklySma40 ? 15 : 0) + (weeklySma40 >= weeklySma325 ? 10 : 0)
+dailyExecutionScore = (close >= dailySma50 ? 15 : 0) + (close >= dailyEma ? 10 : 0) + (showDaily325 and close >= dailySma325 ? 5 : 0)
+accumulationScore = (ta.sma(ta.change(obvSeries), 5) > 0 ? 15 : 0) + (cmfSeries > 0 ? 10 : 0)
+setupScoreRaw = monthlyRegimeScore + weeklyMomentumScore + dailyExecutionScore + accumulationScore
+setupScore = math.min(100, setupScoreRaw)
+
+string stateTag = setupScore >= addThreshold ? 'Add' : setupScore <= cautionThreshold ? 'Risk' : setupScore >= 50 ? 'Hold' : 'Trim'
+
+var table scoreTable = table.new(position.top_right, 2, 2, frame_color=color.new(color.black, 0), frame_width=1)
+if barstate.islast
+    table.cell(scoreTable, 0, 0, 'Setup Score', text_color=color.white, bgcolor=color.new(color.black, 50))
+    table.cell(scoreTable, 0, 1, str.tostring(math.round(setupScore, 1)), text_color=color.white, bgcolor=color.new(color.black, 70))
+    table.cell(scoreTable, 1, 0, 'State', text_color=color.white, bgcolor=color.new(color.black, 50))
+    table.cell(scoreTable, 1, 1, stateTag, text_color=color.white, bgcolor=color.new(color.black, 70))
+
+// === Alerts ===
+alertcondition(setupScore >= addThreshold, title='Setup Score Add', message='Setup Score >= Add threshold')
+alertcondition(reloadCondition, title='Reload zone touch', message='Price entered reload zone between fib 0.382 and 0.5')
+
+weeklyAlertLevel = input.float(na, 'Weekly break level (optional)', group='Alerts')
+weeklyBreakCondition = weeklyClose < weeklySma40 or (not na(weeklyAlertLevel) and weeklyClose < weeklyAlertLevel)
+alertcondition(weeklyBreakCondition, title='Weekly structure break', message='Weekly close below 40WMA or custom level')
+
+monthlyRegimeCaution = monthlyClose < monthlySma12
+alertcondition(monthlyRegimeCaution, title='Monthly regime caution', message='Monthly close fell below 12MMA')
+
+// --- Notes ---
+// Fib pivots rely on ta.pivothigh/ta.pivotlow which confirm only after `rightBars` candles, so levels do not repaint beyond that delay.
+// No auto trendlines or proprietary panels are included; this overlay focuses on MAs, RSI, accumulation proxies, fibs, and setup scoring.
