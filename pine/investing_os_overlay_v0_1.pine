@@ -51,9 +51,10 @@ plot(showRsi and showRsiBands ? rsiLower : na, title='RSI Lower Band', color=col
 accGroup = 'Accumulation'
 showObv = input.bool(false, 'Show OBV', group=accGroup)
 showCmf = input.bool(false, 'Show CMF', group=accGroup)
+cmfLen = input.int(20, 'CMF Length', minval=1, group=accGroup)
 
-obvSeries = ta.obv(close, volume)
-cmfSeries = ta.cmf(high, low, close, volume, 20)
+obvSeries = ta.cum(volume * math.sign(ta.change(close)))
+cmfSeries = ta.cmf(cmfLen)
 plot(showObv ? obvSeries : na, title='OBV', color=color.new(color.blue, 0), display=display.pane)
 plot(showCmf ? cmfSeries : na, title='CMF', color=color.new(color.purple, 0), display=display.pane)
 
