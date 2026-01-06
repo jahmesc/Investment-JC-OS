@@ -1,0 +1,28 @@
+//@version=5
+// Investing OS Overlay v0.1
+// Placeholder script: replace with your TradingView overlay logic.
+
+indicator(title='Investing OS Overlay v0.1', shorttitle='Investing OS v0.1', overlay=true)
+
+// --- Inputs ---
+riskModel = input.string('Default', 'Risk model profile', options=['Default', 'Aggressive', 'Conservative'])
+sessionLabel = input.string('New York', 'Session to highlight', options=['New York', 'London', 'Asia'])
+
+// --- Core placeholders ---
+// Plot baseline session marker
+plotshape(barstate.isfirst, title='Initialization marker', style=shape.circle, location=location.bottom, color=color.new(color.blue, 20), size=size.tiny)
+
+// Highlight chosen session (replace with your own logic)
+sessionColor = switch sessionLabel
+    'New York' => color.new(color.orange, 70)
+    'London' => color.new(color.blue, 70)
+    => color.new(color.purple, 70)
+
+bgcolor(sessionColor, title='Session background')
+
+// Risk model output stub
+label.new(bar_index, high, text='Risk: ' + riskModel, style=label.style_label_upper_left, color=color.new(color.black, 70), textcolor=color.white)
+
+// --- Alerts ---
+// Placeholder alert condition. Replace with strategy-specific logic.
+alertcondition(close > open, title='Bullish placeholder', message='Bullish placeholder signal fired.')
